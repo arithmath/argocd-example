@@ -1,0 +1,30 @@
+# http://prometheus-server/api/v1/series?match[]=\{app="sample-api"\}
+# sum(irate(logback_events_total{level="error"}[2m]))
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+  - name: service-name
+  - name: prometheus-port
+    value: "80"
+  metrics:
+  - name: success-rate
+    successCondition: result[0] <= 0.1
+    provider:
+      prometheus:
+        address: "http://prometheus-server.default.svc.cluster.local:{{args.prometheus-port}}"
+        query: |
+          sum(
+            irate(
+              logback_events_total{level="error", app="{{args.service-name}}"}[2m]
+            )
+          )
+  - name: response_time
+    successCondition: result[0] <= 3.0
+    provider:
+      prometheus:
+        address: "http://prometheus-server.default.svc.cluster.local:{{args.prometheus-port}}"
+        query: |
+          max(http_server_requests_seconds{quantile="0.95", app="{{args.service-name}}"})
